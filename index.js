@@ -35,8 +35,10 @@ function generateUniqueFileName(originalName) {
  * @param {Object} request - PicGo's request utility
  * @returns {Promise<Object>} { apiUrl, authToken, downloadUrl }
  */
-async function authorizeAccount(applicationKeyId, applicationKey, request) {
+async function authorizeAccount(applicationKeyId, applicationKey, request, log) {
   const authString = Buffer.from(`${applicationKeyId}:${applicationKey}`).toString('base64');
+  
+  log.info('[B2] Sending authorization request...');
   
   const result = await request({
     method: 'GET',
@@ -47,8 +49,18 @@ async function authorizeAccount(applicationKeyId, applicationKey, request) {
     json: true
   });
 
+  log.info(`[B2] Authorization response status: ${result.statusCode}`);
+  
+  // Debug: log response structure (remove in production)
   if (result.statusCode !== 200) {
-    throw new Error(`B2 authorization failed: ${result.body.message || 'Unknown error'}`);
+    const errorMsg = result.body && typeof result.body === 'object' 
+      ? result.body.message 
+      : 'Unknown error';
+    throw new Error(`B2 authorization failed: ${errorMsg}`);
+  }
+
+  if (!result.body || typeof result.body !== 'object') {
+    throw new Error('B2 authorization response is empty or invalid');
   }
 
   // B2 API v4 structure: apiInfo.storageApi.{apiUrl,downloadUrl}
@@ -58,6 +70,7 @@ async function authorizeAccount(applicationKeyId, applicationKey, request) {
   const authToken = result.body.authorizationToken;
 
   if (!apiUrl || !authToken) {
+    log.error('[B2] Authorization response missing fields:', JSON.stringify(result.body, null, 2));
     throw new Error('B2 authorization response missing apiUrl or authorizationToken');
   }
 
@@ -91,7 +104,10 @@ async function getUploadUrl(apiUrl, authToken, bucketId, request) {
   });
 
   if (result.statusCode !== 200) {
-    throw new Error(`Failed to get upload URL: ${result.body.message || 'Unknown error'}`);
+    const errorMsg = result.body && typeof result.body === 'object' 
+      ? result.body.message 
+      : 'Unknown error';
+    throw new Error(`Failed to get upload URL: ${errorMsg}`);
   }
 
   return {
@@ -128,7 +144,10 @@ async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, cont
   });
 
   if (result.statusCode !== 200) {
-    throw new Error(`Upload failed: ${result.body.message || 'Unknown error'}`);
+    const errorMsg = result.body && typeof result.body === 'object' 
+      ? result.body.message 
+      : 'Unknown error';
+    throw new Error(`Upload failed: ${errorMsg}`);
   }
 
   return result.body;
@@ -188,7 +207,7 @@ const handle = async (ctx) => {
   try {
     // Step 1: Authorize account
     ctx.log.info('[B2] Authorizing account...');
-    const auth = await authorizeAccount(applicationKeyId, applicationKey, ctx.request);
+    const auth = await authorizeAccount(applicationKeyId, applicationKey, ctx.request, ctx.log);
     ctx.log.info('[B2] Authorization successful');
 
     // Step 2: Get upload URL
