@@ -51,10 +51,19 @@ async function authorizeAccount(applicationKeyId, applicationKey, request) {
     throw new Error(`B2 authorization failed: ${result.body.message || 'Unknown error'}`);
   }
 
+  // B2 API v4 may return apiUrl/downloadUrl in allowed object
+  const apiUrl = result.body.apiUrl || (result.body.allowed && result.body.allowed.apiUrl);
+  const downloadUrl = result.body.downloadUrl || (result.body.allowed && result.body.allowed.downloadUrl);
+  const authToken = result.body.authorizationToken;
+
+  if (!apiUrl || !authToken) {
+    throw new Error('B2 authorization response missing apiUrl or authorizationToken');
+  }
+
   return {
-    apiUrl: result.body.apiUrl,
-    authToken: result.body.authorizationToken,
-    downloadUrl: result.body.downloadUrl,
+    apiUrl,
+    authToken,
+    downloadUrl: downloadUrl || apiUrl, // fallback to apiUrl if downloadUrl not provided
     allowed: result.body.allowed
   };
 }

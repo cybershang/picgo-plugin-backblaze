@@ -92,14 +92,26 @@ async function authorizeAccount(applicationKeyId, applicationKey) {
     throw new Error(`授权失败: ${result.body.message || '未知错误'}`);
   }
 
+  // 调试: 打印完整响应
+  console.log('[B2] 授权响应:', JSON.stringify(result.body, null, 2));
+
+  // B2 API v4 可能在 allowed.apiUrl 中
+  const apiUrl = result.body.apiUrl || (result.body.allowed && result.body.allowed.apiUrl);
+  const downloadUrl = result.body.downloadUrl || (result.body.allowed && result.body.allowed.downloadUrl);
+  const authToken = result.body.authorizationToken;
+
+  if (!apiUrl || !downloadUrl) {
+    throw new Error('授权响应缺少 apiUrl 或 downloadUrl，请检查 Application Key 是否有正确的权限');
+  }
+
   console.log('[B2] 授权成功!');
-  console.log(`  API URL: ${result.body.apiUrl}`);
-  console.log(`  Download URL: ${result.body.downloadUrl}`);
+  console.log(`  API URL: ${apiUrl}`);
+  console.log(`  Download URL: ${downloadUrl}`);
   
   return {
-    apiUrl: result.body.apiUrl,
-    authToken: result.body.authorizationToken,
-    downloadUrl: result.body.downloadUrl
+    apiUrl,
+    authToken,
+    downloadUrl
   };
 }
 
