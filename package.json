@@ -16,6 +16,9 @@
     "cloud-storage"
   ],
   "author": "Yingjie Shang <dev@yingjie.dev>",
+  "contributors": [
+    "Kimi Code"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
