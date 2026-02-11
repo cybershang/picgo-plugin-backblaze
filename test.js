@@ -1,5 +1,5 @@
 /**
- * 测试脚本 - 用于本地测试 B2 上传逻辑
+ * 测试脚本 - 用于本地测试 index.js 插件
  * 
  * 使用方法:
  * 1. 复制 .env.json.example 为 .env.json
@@ -9,33 +9,22 @@
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const https = require('https');
 const { URL } = require('url');
 
-// ============ 工具函数 ============
-
-function sha1(buffer) {
-  return crypto.createHash('sha1').update(buffer).digest('hex');
-}
-
-function generateUniqueFileName(originalName) {
-  const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  const ext = originalName.substring(originalName.lastIndexOf('.'));
-  const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-  return `${baseName}_${timestamp}_${randomStr}${ext}`;
-}
-
-// ============ HTTP 请求封装 ============
-
-function makeRequest(options) {
+/**
+ * 模拟 PicGo 的 request 方法
+ * 使用 Node.js 内置 https 模块
+ */
+function mockRequest(options) {
   return new Promise((resolve, reject) => {
     const url = new URL(options.url);
+    const isHttps = url.protocol === 'https:';
+    const client = isHttps ? https : require('http');
     
     const reqOptions = {
       hostname: url.hostname,
-      port: url.port || 443,
+      port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
       method: options.method || 'GET',
       headers: options.headers || {}
@@ -43,167 +32,102 @@ function makeRequest(options) {
 
     console.log(`[HTTP] ${reqOptions.method} ${url.hostname}${reqOptions.path}`);
 
-    const req = https.request(reqOptions, (res) => {
+    const req = client.request(reqOptions, (res) => {
       let data = Buffer.alloc(0);
       res.on('data', (chunk) => data = Buffer.concat([data, chunk]));
       res.on('end', () => {
-        try {
-          const body = JSON.parse(data.toString());
-          resolve({ statusCode: res.statusCode, body, headers: res.headers });
-        } catch {
-          resolve({ statusCode: res.statusCode, body: data.toString(), headers: res.headers });
+        const response = { 
+          statusCode: res.statusCode, 
+          headers: res.headers 
+        };
+        
+        if (options.json !== false) {
+          try {
+            response.body = JSON.parse(data.toString());
+          } catch {
+            response.body = data.toString();
+          }
+        } else {
+          response.body = data;
         }
+        
+        resolve(response);
       });
     });
 
-    req.on('error', (err) => {
-      console.error(`[HTTP Error] ${err.message}`);
-      reject(err);
-    });
-    
-    req.setTimeout(30000, () => {
+    req.on('error', reject);
+    req.setTimeout(options.timeout || 60000, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });
 
     if (options.body) {
-      req.write(options.body);
+      if (Buffer.isBuffer(options.body)) {
+        req.write(options.body);
+      } else if (typeof options.body === 'object') {
+        req.write(JSON.stringify(options.body));
+      } else {
+        req.write(options.body);
+      }
     }
     
     req.end();
   });
 }
 
-// ============ B2 API 函数 ============
+/**
+ * 创建模拟的 PicGo ctx 对象
+ */
+function createMockCtx(config) {
+  const notifications = [];
+  const logs = [];
 
-async function authorizeAccount(applicationKeyId, applicationKey) {
-  console.log('[B2] 正在授权...');
-  const authString = Buffer.from(`${applicationKeyId}:${applicationKey}`).toString('base64');
-  
-  const result = await makeRequest({
-    method: 'GET',
-    url: 'https://api.backblazeb2.com/b2api/v4/b2_authorize_account',
-    headers: {
-      'Authorization': `Basic ${authString}`
-    }
-  });
-
-  if (result.statusCode !== 200) {
-    throw new Error(`授权失败: ${result.body.message || '未知错误'}`);
-  }
-
-  // 调试: 打印完整响应
-  console.log('[B2] 授权响应:', JSON.stringify(result.body, null, 2));
-
-  // B2 API v4 结构: apiInfo.storageApi.{apiUrl,downloadUrl}
-  const storageApi = result.body.apiInfo?.storageApi;
-  const apiUrl = storageApi?.apiUrl;
-  const downloadUrl = storageApi?.downloadUrl;
-  const authToken = result.body.authorizationToken;
-
-  if (!apiUrl || !downloadUrl) {
-    throw new Error('授权响应缺少 apiUrl 或 downloadUrl，请检查 Application Key 是否有正确的权限');
-  }
-
-  console.log('[B2] 授权成功!');
-  console.log(`  API URL: ${apiUrl}`);
-  console.log(`  Download URL: ${downloadUrl}`);
-  
   return {
-    apiUrl,
-    authToken,
-    downloadUrl
-  };
-}
-
-async function getUploadUrl(apiUrl, authToken, bucketId) {
-  console.log('[B2] 正在获取上传 URL...');
-  
-  const result = await makeRequest({
-    method: 'POST',
-    url: `${apiUrl}/b2api/v4/b2_get_upload_url`,
-    headers: {
-      'Authorization': authToken,
-      'Content-Type': 'application/json'
+    // 配置获取
+    getConfig: (key) => {
+      if (key === 'picBed.b2') return config;
+      return null;
     },
-    body: JSON.stringify({ bucketId })
-  });
 
-  if (result.statusCode !== 200) {
-    throw new Error(`获取上传 URL 失败: ${result.body.message || '未知错误'}`);
-  }
+    // 日志
+    log: {
+      info: (msg) => {
+        logs.push({ level: 'info', msg });
+        console.log(`[INFO] ${msg}`);
+      },
+      error: (msg) => {
+        logs.push({ level: 'error', msg });
+        console.error(`[ERROR] ${msg}`);
+      },
+      warn: (msg) => {
+        logs.push({ level: 'warn', msg });
+        console.warn(`[WARN] ${msg}`);
+      }
+    },
 
-  console.log('[B2] 获取上传 URL 成功!');
-  return {
-    uploadUrl: result.body.uploadUrl,
-    uploadAuthToken: result.body.authorizationToken
+    // 通知
+    emit: (event, data) => {
+      if (event === 'notification') {
+        notifications.push(data);
+        console.log(`[NOTIFICATION] ${data.title}: ${data.body}`);
+      }
+    },
+
+    // HTTP 请求
+    request: mockRequest,
+
+    // 输出数组（上传后的结果）
+    output: [],
+
+    // 内部存储
+    _notifications: notifications,
+    _logs: logs
   };
 }
 
-async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, contentType) {
-  console.log(`[B2] 正在上传文件: ${fileName}`);
-  console.log(`  大小: ${(fileBuffer.length / 1024).toFixed(2)} KB`);
-  
-  const fileSha1 = sha1(fileBuffer);
-  
-  const url = new URL(uploadUrl);
-  
-  const result = await new Promise((resolve, reject) => {
-    const reqOptions = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        'Authorization': uploadAuthToken,
-        'X-Bz-File-Name': encodeURIComponent(fileName),
-        'Content-Type': contentType || 'application/octet-stream',
-        'X-Bz-Content-Sha1': fileSha1,
-        'Content-Length': fileBuffer.length
-      }
-    };
-
-    const req = https.request(reqOptions, (res) => {
-      let data = Buffer.alloc(0);
-      res.on('data', (chunk) => data = Buffer.concat([data, chunk]));
-      res.on('end', () => {
-        try {
-          const body = JSON.parse(data.toString());
-          resolve({ statusCode: res.statusCode, body });
-        } catch {
-          resolve({ statusCode: res.statusCode, body: data.toString() });
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.setTimeout(60000, () => {
-      req.destroy();
-      reject(new Error('Upload timeout'));
-    });
-
-    req.write(fileBuffer);
-    req.end();
-  });
-
-  if (result.statusCode !== 200) {
-    throw new Error(`上传失败: ${result.body.message || '未知错误'}`);
-  }
-
-  console.log('[B2] 上传成功!');
-  return result.body;
-}
-
-function buildFileUrl(downloadUrl, bucketName, fileName, customDomain) {
-  if (customDomain) {
-    const domain = customDomain.endsWith('/') ? customDomain.slice(0, -1) : customDomain;
-    return `${domain}/${encodeURIComponent(fileName)}`;
-  }
-  return `${downloadUrl}/file/${bucketName}/${encodeURIComponent(fileName)}`;
-}
-
-// ============ 主程序 ============
-
+/**
+ * 主测试函数
+ */
 async function main() {
   const imagePath = process.argv[2];
   
@@ -236,12 +160,14 @@ async function main() {
     }
   }
 
+  // 读取文件
   const buffer = fs.readFileSync(imagePath);
   const fileName = path.basename(imagePath);
-  const extname = path.extname(fileName).toLowerCase();
+  const extname = path.extname(fileName);
 
   console.log('\n========================================');
   console.log('PicGo B2 Plugin Test');
+  console.log('Testing: index.js');
   console.log('========================================\n');
   
   console.log('配置信息:');
@@ -257,44 +183,50 @@ async function main() {
   console.log(`  扩展名: ${extname}`);
   console.log('');
 
+  // 加载插件
+  const plugin = require('./index.js');
+  const ctx = createMockCtx(config);
+  
+  // 设置输出（模拟 PicGo 的输出格式）
+  ctx.output = [{
+    buffer,
+    fileName,
+    extname,
+    width: 0,
+    height: 0
+  }];
+
+  console.log('开始上传测试...\n');
+
   try {
-    // Step 1: 授权
-    const auth = await authorizeAccount(config.applicationKeyId, config.applicationKey);
+    // 创建 helper 来捕获注册的 uploader
+    const registeredUploaders = {};
+    ctx.helper = {
+      uploader: {
+        register: (name, uploader) => {
+          registeredUploaders[name] = uploader;
+          console.log(`[Plugin] Registered uploader: ${name}`);
+        }
+      }
+    };
 
-    // Step 2: 获取上传 URL
-    const uploadInfo = await getUploadUrl(auth.apiUrl, auth.authToken, config.bucketId);
+    // 初始化并注册插件
+    const pluginInstance = plugin(ctx);
+    pluginInstance.register(ctx);
 
-    // Step 3: 准备文件名
-    let uploadFileName = generateUniqueFileName(fileName);
-    if (config.pathPrefix) {
-      const prefix = config.pathPrefix.endsWith('/') ? config.pathPrefix : `${config.pathPrefix}/`;
-      uploadFileName = prefix + uploadFileName;
+    // 获取 b2 uploader 并调用 handle
+    const b2Uploader = registeredUploaders['b2'];
+    if (!b2Uploader || !b2Uploader.handle) {
+      throw new Error('B2 uploader not registered properly');
     }
 
-    // 确定 Content-Type
-    const contentTypeMap = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.svg': 'image/svg+xml',
-      '.bmp': 'image/bmp',
-      '.ico': 'image/x-icon',
-      '.md': 'text/markdown'
-    };
-    const contentType = contentTypeMap[extname] || 'application/octet-stream';
-
-    // Step 4: 上传文件
-    await uploadFile(uploadInfo.uploadUrl, uploadInfo.uploadAuthToken, buffer, uploadFileName, contentType);
-
-    // Step 5: 构建 URL
-    const fileUrl = buildFileUrl(auth.downloadUrl, config.bucketName, uploadFileName, config.customDomain);
+    // 调用 index.js 中的实际 handle 方法
+    await b2Uploader.handle(ctx);
 
     console.log('\n========================================');
     console.log('上传成功!');
     console.log('========================================');
-    console.log(`文件 URL: ${fileUrl}`);
+    console.log(`文件 URL: ${ctx.output[0].imgUrl}`);
     console.log('');
 
   } catch (err) {
@@ -302,6 +234,7 @@ async function main() {
     console.log('上传失败!');
     console.log('========================================');
     console.error(`错误: ${err.message}`);
+    console.error(err.stack);
     process.exit(1);
   }
 }
