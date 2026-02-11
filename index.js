@@ -34,18 +34,16 @@ function generateUniqueFileName(originalName) {
  * - Direct JSON object on success
  * - Error object with status/statusCode on failure
  */
-function parseResponse(result, log) {
-  log.info('[B2] Raw response type:', typeof result);
-  
+/**
+ * Parse response from PicGo's request utility
+ * PicGo returns direct JSON body on success, error object on failure
+ */
+function parseResponse(result) {
   if (typeof result === 'object' && result !== null) {
-    log.info('[B2] Response keys:', Object.keys(result).join(', '));
-    
     // Check if this is an error response with statusCode
     const statusCode = result.statusCode || result.status;
     
     if (statusCode && (statusCode < 200 || statusCode >= 300)) {
-      // This is an error response
-      log.info('[B2] Error status code:', statusCode);
       let body = result.body || result.data || result;
       if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch (e) {}
@@ -63,11 +61,9 @@ function parseResponse(result, log) {
     }
     
     // Otherwise, result is the body itself (direct response)
-    log.info('[B2] Direct response (no wrapper)');
     return { statusCode: 200, body: result };
   }
   
-  // For non-object responses
   return { statusCode: undefined, body: result };
 }
 
@@ -82,8 +78,7 @@ function parseResponse(result, log) {
 async function authorizeAccount(applicationKeyId, applicationKey, request, log) {
   const authString = Buffer.from(`${applicationKeyId}:${applicationKey}`).toString('base64');
   
-  log.info('[B2] Sending authorization request...');
-  log.info('[B2] Key ID:', applicationKeyId.substring(0, 10) + '...');
+  log.info('[B2] Authorizing...');
   
   let result;
   try {
@@ -96,25 +91,18 @@ async function authorizeAccount(applicationKeyId, applicationKey, request, log) 
       json: true
     });
   } catch (err) {
-    log.error('[B2] Request error:', err.message);
-    throw new Error(`Request failed: ${err.message}`);
+    throw new Error(`Authorization request failed: ${err.message}`);
   }
 
-  log.info('[B2] Got response, parsing...');
-  const { statusCode, body } = parseResponse(result, log);
-  
-  log.info('[B2] Parsed status:', statusCode);
-  log.info('[B2] Parsed body type:', typeof body);
+  const { statusCode, body } = parseResponse(result);
   
   if (statusCode !== 200) {
     const errorMsg = body && typeof body === 'object' ? body.message : 'Unknown error';
-    log.error('[B2] Authorization failed:', errorMsg);
-    throw new Error(`B2 authorization failed: ${errorMsg}`);
+    throw new Error(`Authorization failed: ${errorMsg}`);
   }
 
   if (!body || typeof body !== 'object') {
-    log.error('[B2] Invalid response body:', body);
-    throw new Error('B2 authorization response is empty or invalid');
+    throw new Error('Authorization response is empty or invalid');
   }
 
   // B2 API v4 structure: apiInfo.storageApi.{apiUrl,downloadUrl}
@@ -123,13 +111,8 @@ async function authorizeAccount(applicationKeyId, applicationKey, request, log) 
   const downloadUrl = storageApi?.downloadUrl;
   const authToken = body.authorizationToken;
 
-  log.info('[B2] Extracted apiUrl:', apiUrl ? 'yes' : 'no');
-  log.info('[B2] Extracted authToken:', authToken ? 'yes' : 'no');
-  log.info('[B2] Extracted downloadUrl:', downloadUrl ? 'yes' : 'no');
-
   if (!apiUrl || !authToken) {
-    log.error('[B2] Response body:', JSON.stringify(body, null, 2));
-    throw new Error('B2 authorization response missing apiUrl or authorizationToken');
+    throw new Error('Authorization response missing apiUrl or authorizationToken');
   }
 
   return {
@@ -150,8 +133,6 @@ async function authorizeAccount(applicationKeyId, applicationKey, request, log) 
  * @returns {Promise<Object>} { uploadUrl, uploadAuthToken }
  */
 async function getUploadUrl(apiUrl, authToken, bucketId, request, log) {
-  log.info('[B2] Getting upload URL for bucket:', bucketId);
-  
   let result;
   try {
     result = await request({
@@ -167,11 +148,10 @@ async function getUploadUrl(apiUrl, authToken, bucketId, request, log) {
       json: true
     });
   } catch (err) {
-    log.error('[B2] Get upload URL request error:', err.message);
     throw new Error(`Get upload URL failed: ${err.message}`);
   }
 
-  const { statusCode, body } = parseResponse(result, log);
+  const { statusCode, body } = parseResponse(result);
 
   if (statusCode !== 200) {
     const errorMsg = body && typeof body === 'object' ? body.message : 'Unknown error';
@@ -198,9 +178,7 @@ async function getUploadUrl(apiUrl, authToken, bucketId, request, log) {
 async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, contentType, request, log) {
   const fileSha1 = sha1(fileBuffer);
   
-  log.info('[B2] Uploading file:', fileName);
-  log.info('[B2] File size:', fileBuffer.length, 'bytes');
-  log.info('[B2] File SHA1:', fileSha1.substring(0, 16) + '...');
+  log.info(`[B2] Uploading ${fileName} (${(fileBuffer.length / 1024).toFixed(2)} KB)...`);
   
   let result;
   try {
@@ -218,8 +196,7 @@ async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, cont
       json: true
     });
   } catch (err) {
-    log.error('[B2] Upload request error:', err.message);
-    throw new Error(`Upload request failed: ${err.message}`);
+    throw new Error(`Upload failed: ${err.message}`);
   }
 
   const { statusCode, body } = parseResponse(result, log);
@@ -283,13 +260,10 @@ const handle = async (ctx) => {
 
   try {
     // Step 1: Authorize account
-    ctx.log.info('[B2] Starting upload process...');
     const auth = await authorizeAccount(applicationKeyId, applicationKey, ctx.request, ctx.log);
-    ctx.log.info('[B2] Authorization successful, apiUrl:', auth.apiUrl.substring(0, 30) + '...');
 
     // Step 2: Get upload URL
     const uploadInfo = await getUploadUrl(auth.apiUrl, auth.authToken, bucketId, ctx.request, ctx.log);
-    ctx.log.info('[B2] Got upload URL');
 
     // Step 3: Upload each file
     const output = ctx.output;
@@ -310,7 +284,7 @@ const handle = async (ctx) => {
         uploadFileName = prefix + uploadFileName;
       }
 
-      ctx.log.info(`[B2] Uploading ${fileName} as ${uploadFileName}...`);
+      ctx.log.info(`[B2] Preparing to upload: ${uploadFileName}`);
 
       // Determine content type from file extension
       const ext = item.extname?.toLowerCase() || '';
