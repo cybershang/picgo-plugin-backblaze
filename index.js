@@ -30,7 +30,9 @@ function generateUniqueFileName(originalName) {
 
 /**
  * Parse response from PicGo's request utility
- * Different versions of PicGo may return different formats
+ * PicGo may return:
+ * - Direct JSON object on success
+ * - Error object with status/statusCode on failure
  */
 function parseResponse(result, log) {
   log.info('[B2] Raw response type:', typeof result);
@@ -38,25 +40,34 @@ function parseResponse(result, log) {
   if (typeof result === 'object' && result !== null) {
     log.info('[B2] Response keys:', Object.keys(result).join(', '));
     
-    // Check for statusCode or status
+    // Check if this is an error response with statusCode
     const statusCode = result.statusCode || result.status;
-    log.info('[B2] Status code:', statusCode);
     
-    // Check for body or data
-    let body = result.body || result.data;
-    
-    // If body is a string, try to parse as JSON
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        // Keep as string
+    if (statusCode && (statusCode < 200 || statusCode >= 300)) {
+      // This is an error response
+      log.info('[B2] Error status code:', statusCode);
+      let body = result.body || result.data || result;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch (e) {}
       }
+      return { statusCode, body };
     }
     
-    return { statusCode, body };
+    // Check if result has body/data (axios-style wrapper)
+    if (result.body !== undefined || result.data !== undefined) {
+      let body = result.body || result.data;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch (e) {}
+      }
+      return { statusCode: 200, body };
+    }
+    
+    // Otherwise, result is the body itself (direct response)
+    log.info('[B2] Direct response (no wrapper)');
+    return { statusCode: 200, body: result };
   }
   
+  // For non-object responses
   return { statusCode: undefined, body: result };
 }
 
