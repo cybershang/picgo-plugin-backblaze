@@ -2,9 +2,21 @@
  * PicGo Plugin for Backblaze B2 Cloud Storage
  * 
  * This plugin allows PicGo to upload images to Backblaze B2 buckets.
+ * 
+ * 支持功能:
+ * - CLI 版本: 基础上传功能
+ * - GUI 版本: 上传 + 相册删除同步 + 云端文件管理
  */
 
 const crypto = require('crypto');
+
+// 加载 GUI 功能模块（仅在 GUI 版本时生效）
+let guiModule;
+try {
+  guiModule = require('./gui.js');
+} catch (err) {
+  // CLI 版本可能没有 gui.js 依赖，忽略错误
+}
 
 /**
  * Calculate SHA1 hash of buffer
@@ -401,11 +413,32 @@ const register = (ctx) => {
     config,
     name: 'Backblaze B2'
   });
+
+  // 注册 GUI 功能（如果有）
+  if (guiModule && guiModule.registerRemoveListener) {
+    try {
+      guiModule.registerRemoveListener(ctx);
+    } catch (err) {
+      ctx.log.warn('[B2] GUI 功能注册失败:', err.message);
+    }
+  }
 };
 
 module.exports = (ctx) => {
-  return {
+  const result = {
     register,
     uploader: 'b2'
   };
+
+  // 添加 GUI 菜单（如果有）
+  if (guiModule && guiModule.guiMenu) {
+    result.guiMenu = guiModule.guiMenu;
+  }
+
+  // 添加快捷键支持（如果有）
+  if (guiModule && guiModule.commands) {
+    result.commands = guiModule.commands;
+  }
+
+  return result;
 };

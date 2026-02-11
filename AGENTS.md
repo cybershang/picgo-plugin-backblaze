@@ -242,12 +242,85 @@ node test.js image.png
 4. **SHA1 计算**: B2 要求上传时必须提供文件的 SHA1 校验值
 5. **Bucket 权限**: Bucket 需要设置为公开，或使用自定义域名 + CDN
 
+## GUI 功能
+
+从 v1.1.0 开始，插件支持 PicGo GUI 版本的增强功能。
+
+### 已实现功能
+
+#### 1. guiMenu - 插件菜单
+
+在 PicGo 插件页面右键菜单中提供以下功能：
+
+| 菜单项 | 功能描述 |
+|--------|----------|
+| 📁 查看 B2 Bucket 文件 | 列出 Bucket 中的文件（最多 50 个） |
+| 🗑️ 删除云端文件 | 手动输入文件名删除 B2 云端文件 |
+| 🔗 打开 B2 控制台 | 复制 B2 控制台链接到剪贴板 |
+
+#### 2. remove 事件 - 相册删除同步
+
+当用户在 PicGo 相册中删除图片时，自动同步删除 B2 云端对应的文件。
+
+**实现逻辑**:
+1. 监听 `remove` 事件
+2. 检查被删除文件的 `type` 是否为 `'b2'`
+3. 从图片 URL 中提取文件名
+4. 调用 B2 API 删除云端文件
+
+**注意事项**:
+- 仅从相册删除记录，不删除云端文件的情况：如果 `type` 不是 `'b2'`
+- 删除失败会记录日志但不阻塞其他操作
+
+#### 3. commands - 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+Shift+D` | 快速删除 B2 云端文件 |
+
+### GUI 功能实现文件
+
+```
+gui.js
+├── guiMenu(ctx)              # 生成插件菜单
+├── registerRemoveListener    # 注册删除监听器
+├── commands(ctx)             # 快捷键配置
+├── deleteB2File()            # 删除 B2 文件 API
+├── listB2Files()             # 获取文件列表 API
+└── extractFileNameFromUrl()  # URL 解析工具
+```
+
+### GUI API 使用
+
+```javascript
+// 显示输入框
+const value = await guiApi.showInputBox({
+  title: '标题',
+  placeholder: '提示文字'
+});
+
+// 显示对话框
+const result = await guiApi.showMessageBox({
+  title: '标题',
+  message: '内容',
+  type: 'info',  // 'info' | 'warning' | 'error'
+  buttons: ['按钮1', '按钮2']
+});
+
+// 显示系统通知
+await guiApi.showNotification({
+  title: '标题',
+  body: '内容'
+});
+```
+
 ## 扩展建议
 
 可能的未来功能:
-- GUI 菜单支持（删除云端文件）
+- ~~GUI 菜单支持~~ ✅ 已实现
+- ~~相册删除同步~~ ✅ 已实现
 - 批量删除功能
 - 上传进度显示
-- 文件列表浏览
+- 文件列表浏览（带分页）
 - 自定义命名规则（支持日期格式等）
 - 支持 B2 S3 兼容 API
