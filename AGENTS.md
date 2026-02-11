@@ -71,10 +71,83 @@
 - 常量: UPPER_SNAKE_CASE (如有)
 - 变量: camelCase
 
+## 测试方法
+
+### 官方推荐测试方式 (PicGo CLI)
+
+1. **全局安装 PicGo**:
+   ```bash
+   npm install picgo -g
+   picgo -h  # 首次运行需要初始化
+   ```
+
+2. **本地安装插件**:
+   将插件文件夹放入 PicGo 配置目录，然后:
+   ```bash
+   # 进入 PicGo 配置目录
+   cd ~/.config/picgo  # Linux/macOS
+   # 或 %APPDATA%/picgo  # Windows
+   
+   # 本地安装插件
+   npm install /path/to/picgo-plugin-b2
+   ```
+
+3. **测试上传**:
+   ```bash
+   picgo set uploader b2    # 配置 B2
+   picgo upload image.png   # 测试上传
+   ```
+
+### GUI 版本测试
+
+- **PicGo 2.3.0+**: 插件设置 → 导入本地插件 → 选择插件目录
+- 修改代码后需要**完全退出** PicGo 进程再重启才能生效
+
+### 本地测试脚本
+
+项目提供了 `test.js` 用于快速测试（无需安装 PicGo）:
+```bash
+cp .env.json.example .env.json
+# 编辑 .env.json 填入 B2 凭证
+node test.js image.png
+```
+注意: `test.js` 会模拟 PicGo 的 ctx 对象并调用 `index.js` 中的实际代码。
+
+## 发布要求
+
+### NPM 包配置
+
+- **命名规范**: 必须使用 `picgo-plugin-<name>` 格式
+- **package.json** 关键字段:
+  ```json
+  {
+    "name": "picgo-plugin-b2",
+    "description": "PicGo uploader plugin for Backblaze B2",
+    "homepage": "https://github.com/xxx/picgo-plugin-b2#readme",
+    "keywords": ["picgo", "picgo-plugin", "picgo-gui-plugin"],
+    "main": "index.js"
+  }
+  ```
+
+### GUI 优化（可选）
+
+- 添加 `logo.png` 到包根目录作为插件图标
+- 在 `keywords` 中添加 `"picgo-gui-plugin"` 表示支持 GUI
+- 插件入口必须明确指定 uploader/transformer name:
+  ```js
+  module.exports = (ctx) => {
+    return {
+      register,
+      uploader: 'b2'  // 必须指定
+    }
+  }
+  ```
+
 ## 参考资料
 
 - PicGo 插件开发文档: https://docs.picgo.app/zh/core/dev-guide/cli
 - PicGo GUI 插件文档: https://docs.picgo.app/zh/core/dev-guide/gui
+- PicGo 测试与发布: https://docs.picgo.app/zh/core/dev-guide/deploy
 - B2 API 文档: https://www.backblaze.com/apidocs/introduction-to-the-b2-native-api
 - B2 上传文件 API: https://www.backblaze.com/apidocs/b2-upload-file
 

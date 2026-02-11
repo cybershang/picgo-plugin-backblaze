@@ -10,7 +10,14 @@
     "type": "git",
     "url": "git+https://github.com/cybershang/picgo-plugin-b2.git"
   },
-  "keywords": ["picgo","picgo-plugin","uploader","backblaze","b2","cloud-storage"],
+  "keywords": [
+    "picgo",
+    "picgo-plugin",
+    "picgo-gui-plugin",
+    "uploader",
+    "backblaze",
+    "b2"
+  ],
   "author": "",
   "license": "MIT",
   "type": "commonjs",
