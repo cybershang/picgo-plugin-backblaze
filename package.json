@@ -4,7 +4,6 @@
   "description": "PicGo uploader plugin for Backblaze B2 Cloud Storage",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
   },
   "keywords": [
     "picgo",
