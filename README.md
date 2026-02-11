@@ -1,4 +1,4 @@
-# picgo-plugin-b2
+# picgo-plugin-backblaze
 
 [PicGo](https://github.com/Molunerfinn/PicGo) 的 [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) 云存储上传插件。
 
@@ -20,19 +20,19 @@ This is a PicGo uploader plugin for Backblaze B2 Cloud Storage.
 ### 通过 PicGo GUI 安装
 
 1. 打开 PicGo，进入「插件设置」
-2. 搜索 `picgo-plugin-b2`
+2. 搜索 `picgo-plugin-backblaze`
 3. 点击安装
 
 ### 通过 NPM 安装 (CLI 版本)
 
 ```bash
-npm install picgo-plugin-b2 -g
+npm install picgo-plugin-backblaze -g
 ```
 
 或
 
 ```bash
-picgo install picgo-plugin-b2
+picgo install picgo-plugin-backblaze
 ```
 
 ## 配置
@@ -117,15 +117,15 @@ images/2024/blog
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/picgo-plugin-b2.git
+git clone https://github.com/yourusername/picgo-plugin-backblaze.git
 cd picgo-plugin-b2
 
 # 本地安装到 PicGo
-npm install /path/to/picgo-plugin-b2 --prefix ~/.picgo
+npm install /path/to/picgo-plugin-backblaze --prefix ~/.picgo
 
 # 或使用 symlink
 cd ~/.picgo
-npm link /path/to/picgo-plugin-b2
+npm link /path/to/picgo-plugin-backblaze
 ```
 
 ### 本地测试

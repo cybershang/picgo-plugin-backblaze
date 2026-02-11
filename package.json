@@ -1,14 +1,10 @@
 {
-  "name": "picgo-plugin-b2",
+  "name": "picgo-plugin-backblaze",
   "version": "1.0.0",
   "description": "PicGo uploader plugin for Backblaze B2 Cloud Storage",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/cybershang/picgo-plugin-b2.git"
+    "test": "node test.js"
   },
   "keywords": [
     "picgo",
@@ -16,16 +12,33 @@
     "picgo-gui-plugin",
     "uploader",
     "backblaze",
-    "b2"
+    "b2",
+    "cloud-storage"
   ],
-  "author": "",
+  "author": "Yingjie Shang <dev@yingjie.dev>",
+  "contributors": [
+    "Kimi Code"
+  ],
   "license": "MIT",
-  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cybershang/picgo-plugin-b2.git"
+  },
   "bugs": {
     "url": "https://github.com/cybershang/picgo-plugin-b2/issues"
   },
   "homepage": "https://github.com/cybershang/picgo-plugin-b2#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "peerDependencies": {
     "picgo": "^1.5.0"
-  }
+  },
+  "files": [
+    "index.js",
+    "gui.js",
+    "logo.png",
+    "LICENSE",
+    "README.md"
+  ]
 }

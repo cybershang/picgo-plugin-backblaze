@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Background with Backblaze B2 red color -->
+  <rect width="256" height="256" rx="40" fill="#d73a31"/>
+  
+  <!-- Cloud shape -->
+  <path d="M128 60 
+           C105 60, 85 75, 80 95
+           C60 95, 45 110, 45 130
+           C45 155, 65 170, 90 170
+           L166 170
+           C191 170, 211 155, 211 130
+           C211 110, 196 95, 176 95
+           C171 75, 151 60, 128 60Z" 
+        fill="white"/>
+  
+  <!-- B2 text -->
+  <text x="128" y="145" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="60" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="#d73a31">B2</text>
+  
+  <!-- Upload arrow -->
+  <path d="M128 185 L128 210 M128 185 L115 200 M128 185 L141 200" 
+        stroke="white" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none"/>
+</svg>
