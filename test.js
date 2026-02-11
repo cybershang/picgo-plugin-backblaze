@@ -95,9 +95,10 @@ async function authorizeAccount(applicationKeyId, applicationKey) {
   // 调试: 打印完整响应
   console.log('[B2] 授权响应:', JSON.stringify(result.body, null, 2));
 
-  // B2 API v4 可能在 allowed.apiUrl 中
-  const apiUrl = result.body.apiUrl || (result.body.allowed && result.body.allowed.apiUrl);
-  const downloadUrl = result.body.downloadUrl || (result.body.allowed && result.body.allowed.downloadUrl);
+  // B2 API v4 结构: apiInfo.storageApi.{apiUrl,downloadUrl}
+  const storageApi = result.body.apiInfo?.storageApi;
+  const apiUrl = storageApi?.apiUrl;
+  const downloadUrl = storageApi?.downloadUrl;
   const authToken = result.body.authorizationToken;
 
   if (!apiUrl || !downloadUrl) {
