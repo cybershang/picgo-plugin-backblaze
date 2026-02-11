@@ -1,4 +1,4 @@
-# AGENTS.md - picgo-plugin-b2
+# AGENTS.md - picgo-plugin-backblaze
 
 ## 项目概述
 
@@ -17,6 +17,7 @@
 ```
 .
 ├── index.js              # 主入口文件，包含所有上传逻辑
+├── gui.js                # GUI 功能模块
 ├── package.json          # NPM 包配置
 ├── logo.png              # 插件图标 (256x256 PNG)
 ├── test.js               # 本地测试脚本（模拟 PicGo 环境）
@@ -148,7 +149,7 @@ function parseResponse(result) {
 2. **本地安装插件**:
    ```bash
    # 使用 symlink（推荐开发时使用）
-   cd /path/to/picgo-plugin-b2
+   cd /path/to/picgo-plugin-backblaze
    npm link
    
    cd ~/.picgo  # PicGo 配置目录

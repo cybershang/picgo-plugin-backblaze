@@ -1,5 +1,5 @@
 {
-  "name": "picgo-plugin-b2",
+  "name": "picgo-plugin-backblaze",
   "version": "1.0.0",
   "description": "PicGo uploader plugin for Backblaze B2 Cloud Storage",
   "main": "index.js",
@@ -15,7 +15,7 @@
     "b2",
     "cloud-storage"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "Yingjie Shang <dev@yingjie.dev>",
   "license": "MIT",
   "repository": {
     "type": "git",
