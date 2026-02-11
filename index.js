@@ -29,56 +29,103 @@ function generateUniqueFileName(originalName) {
 }
 
 /**
+ * Parse response from PicGo's request utility
+ * Different versions of PicGo may return different formats
+ */
+function parseResponse(result, log) {
+  log.info('[B2] Raw response type:', typeof result);
+  
+  if (typeof result === 'object' && result !== null) {
+    log.info('[B2] Response keys:', Object.keys(result).join(', '));
+    
+    // Check for statusCode or status
+    const statusCode = result.statusCode || result.status;
+    log.info('[B2] Status code:', statusCode);
+    
+    // Check for body or data
+    let body = result.body || result.data;
+    
+    // If body is a string, try to parse as JSON
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        // Keep as string
+      }
+    }
+    
+    return { statusCode, body };
+  }
+  
+  return { statusCode: undefined, body: result };
+}
+
+/**
  * Authorize with B2 and get API URL and auth token
  * @param {string} applicationKeyId 
  * @param {string} applicationKey 
  * @param {Object} request - PicGo's request utility
+ * @param {Object} log - PicGo's logger
  * @returns {Promise<Object>} { apiUrl, authToken, downloadUrl }
  */
 async function authorizeAccount(applicationKeyId, applicationKey, request, log) {
   const authString = Buffer.from(`${applicationKeyId}:${applicationKey}`).toString('base64');
   
   log.info('[B2] Sending authorization request...');
+  log.info('[B2] Key ID:', applicationKeyId.substring(0, 10) + '...');
   
-  const result = await request({
-    method: 'GET',
-    url: 'https://api.backblazeb2.com/b2api/v4/b2_authorize_account',
-    headers: {
-      'Authorization': `Basic ${authString}`
-    },
-    json: true
-  });
+  let result;
+  try {
+    result = await request({
+      method: 'GET',
+      url: 'https://api.backblazeb2.com/b2api/v4/b2_authorize_account',
+      headers: {
+        'Authorization': `Basic ${authString}`
+      },
+      json: true
+    });
+  } catch (err) {
+    log.error('[B2] Request error:', err.message);
+    throw new Error(`Request failed: ${err.message}`);
+  }
 
-  log.info(`[B2] Authorization response status: ${result.statusCode}`);
+  log.info('[B2] Got response, parsing...');
+  const { statusCode, body } = parseResponse(result, log);
   
-  // Debug: log response structure (remove in production)
-  if (result.statusCode !== 200) {
-    const errorMsg = result.body && typeof result.body === 'object' 
-      ? result.body.message 
-      : 'Unknown error';
+  log.info('[B2] Parsed status:', statusCode);
+  log.info('[B2] Parsed body type:', typeof body);
+  
+  if (statusCode !== 200) {
+    const errorMsg = body && typeof body === 'object' ? body.message : 'Unknown error';
+    log.error('[B2] Authorization failed:', errorMsg);
     throw new Error(`B2 authorization failed: ${errorMsg}`);
   }
 
-  if (!result.body || typeof result.body !== 'object') {
+  if (!body || typeof body !== 'object') {
+    log.error('[B2] Invalid response body:', body);
     throw new Error('B2 authorization response is empty or invalid');
   }
 
   // B2 API v4 structure: apiInfo.storageApi.{apiUrl,downloadUrl}
-  const storageApi = result.body.apiInfo?.storageApi;
+  const storageApi = body.apiInfo?.storageApi;
   const apiUrl = storageApi?.apiUrl;
   const downloadUrl = storageApi?.downloadUrl;
-  const authToken = result.body.authorizationToken;
+  const authToken = body.authorizationToken;
+
+  log.info('[B2] Extracted apiUrl:', apiUrl ? 'yes' : 'no');
+  log.info('[B2] Extracted authToken:', authToken ? 'yes' : 'no');
+  log.info('[B2] Extracted downloadUrl:', downloadUrl ? 'yes' : 'no');
 
   if (!apiUrl || !authToken) {
-    log.error('[B2] Authorization response missing fields:', JSON.stringify(result.body, null, 2));
+    log.error('[B2] Response body:', JSON.stringify(body, null, 2));
     throw new Error('B2 authorization response missing apiUrl or authorizationToken');
   }
 
   return {
     apiUrl,
     authToken,
-    downloadUrl: downloadUrl || apiUrl, // fallback to apiUrl if downloadUrl not provided
-    allowed: result.body.allowed
+    downloadUrl: downloadUrl || apiUrl,
+    allowed: body.allowed
   };
 }
 
@@ -88,31 +135,41 @@ async function authorizeAccount(applicationKeyId, applicationKey, request, log) 
  * @param {string} authToken 
  * @param {string} bucketId 
  * @param {Object} request - PicGo's request utility
+ * @param {Object} log - PicGo's logger
  * @returns {Promise<Object>} { uploadUrl, uploadAuthToken }
  */
-async function getUploadUrl(apiUrl, authToken, bucketId, request) {
-  const result = await request({
-    method: 'POST',
-    url: `${apiUrl}/b2api/v4/b2_get_upload_url`,
-    headers: {
-      'Authorization': authToken
-    },
-    body: {
-      bucketId: bucketId
-    },
-    json: true
-  });
+async function getUploadUrl(apiUrl, authToken, bucketId, request, log) {
+  log.info('[B2] Getting upload URL for bucket:', bucketId);
+  
+  let result;
+  try {
+    result = await request({
+      method: 'POST',
+      url: `${apiUrl}/b2api/v4/b2_get_upload_url`,
+      headers: {
+        'Authorization': authToken,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        bucketId: bucketId
+      },
+      json: true
+    });
+  } catch (err) {
+    log.error('[B2] Get upload URL request error:', err.message);
+    throw new Error(`Get upload URL failed: ${err.message}`);
+  }
 
-  if (result.statusCode !== 200) {
-    const errorMsg = result.body && typeof result.body === 'object' 
-      ? result.body.message 
-      : 'Unknown error';
+  const { statusCode, body } = parseResponse(result, log);
+
+  if (statusCode !== 200) {
+    const errorMsg = body && typeof body === 'object' ? body.message : 'Unknown error';
     throw new Error(`Failed to get upload URL: ${errorMsg}`);
   }
 
   return {
-    uploadUrl: result.body.uploadUrl,
-    uploadAuthToken: result.body.authorizationToken
+    uploadUrl: body.uploadUrl,
+    uploadAuthToken: body.authorizationToken
   };
 }
 
@@ -124,33 +181,44 @@ async function getUploadUrl(apiUrl, authToken, bucketId, request) {
  * @param {string} fileName 
  * @param {string} contentType 
  * @param {Object} request - PicGo's request utility
+ * @param {Object} log - PicGo's logger
  * @returns {Promise<Object>}
  */
-async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, contentType, request) {
+async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, contentType, request, log) {
   const fileSha1 = sha1(fileBuffer);
   
-  const result = await request({
-    method: 'POST',
-    url: uploadUrl,
-    headers: {
-      'Authorization': uploadAuthToken,
-      'X-Bz-File-Name': encodeURIComponent(fileName),
-      'Content-Type': contentType || 'application/octet-stream',
-      'X-Bz-Content-Sha1': fileSha1,
-      'Content-Length': fileBuffer.length
-    },
-    body: fileBuffer,
-    json: true
-  });
+  log.info('[B2] Uploading file:', fileName);
+  log.info('[B2] File size:', fileBuffer.length, 'bytes');
+  log.info('[B2] File SHA1:', fileSha1.substring(0, 16) + '...');
+  
+  let result;
+  try {
+    result = await request({
+      method: 'POST',
+      url: uploadUrl,
+      headers: {
+        'Authorization': uploadAuthToken,
+        'X-Bz-File-Name': encodeURIComponent(fileName),
+        'Content-Type': contentType || 'application/octet-stream',
+        'X-Bz-Content-Sha1': fileSha1,
+        'Content-Length': fileBuffer.length
+      },
+      body: fileBuffer,
+      json: true
+    });
+  } catch (err) {
+    log.error('[B2] Upload request error:', err.message);
+    throw new Error(`Upload request failed: ${err.message}`);
+  }
 
-  if (result.statusCode !== 200) {
-    const errorMsg = result.body && typeof result.body === 'object' 
-      ? result.body.message 
-      : 'Unknown error';
+  const { statusCode, body } = parseResponse(result, log);
+
+  if (statusCode !== 200) {
+    const errorMsg = body && typeof body === 'object' ? body.message : 'Unknown error';
     throw new Error(`Upload failed: ${errorMsg}`);
   }
 
-  return result.body;
+  return body;
 }
 
 /**
@@ -162,12 +230,10 @@ async function uploadFile(uploadUrl, uploadAuthToken, fileBuffer, fileName, cont
  * @returns {string}
  */
 function buildFileUrl(downloadUrl, bucketName, fileName, customDomain) {
-  // If custom domain is provided, use it
   if (customDomain) {
     const domain = customDomain.endsWith('/') ? customDomain.slice(0, -1) : customDomain;
     return `${domain}/${encodeURIComponent(fileName)}`;
   }
-  // Otherwise use B2's native URL format
   return `${downloadUrl}/file/${bucketName}/${encodeURIComponent(fileName)}`;
 }
 
@@ -206,13 +272,12 @@ const handle = async (ctx) => {
 
   try {
     // Step 1: Authorize account
-    ctx.log.info('[B2] Authorizing account...');
+    ctx.log.info('[B2] Starting upload process...');
     const auth = await authorizeAccount(applicationKeyId, applicationKey, ctx.request, ctx.log);
-    ctx.log.info('[B2] Authorization successful');
+    ctx.log.info('[B2] Authorization successful, apiUrl:', auth.apiUrl.substring(0, 30) + '...');
 
     // Step 2: Get upload URL
-    ctx.log.info('[B2] Getting upload URL...');
-    const uploadInfo = await getUploadUrl(auth.apiUrl, auth.authToken, bucketId, ctx.request);
+    const uploadInfo = await getUploadUrl(auth.apiUrl, auth.authToken, bucketId, ctx.request, ctx.log);
     ctx.log.info('[B2] Got upload URL');
 
     // Step 3: Upload each file
@@ -257,7 +322,8 @@ const handle = async (ctx) => {
         buffer,
         uploadFileName,
         contentType,
-        ctx.request
+        ctx.request,
+        ctx.log
       );
 
       // Build file URL
