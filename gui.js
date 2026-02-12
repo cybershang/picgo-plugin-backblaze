@@ -388,5 +388,6 @@ const commands = (ctx) => {
 module.exports = {
   guiMenu,
   registerRemoveListener,
-  commands
+  commands,
+  deleteB2File
 };

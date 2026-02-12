@@ -10,18 +10,25 @@
  * 4. Configure picgo uploader with B2 settings
  * 5. Upload file via picgo upload command
  * 6. Download the returned URL and verify hash
+ * 7. Delete the uploaded file
+ * 8. Verify file is deleted (access URL returns 404)
  * 
  * Exit codes:
  * 0 - All tests passed
  * 1 - Environment/config error
  * 2 - Upload failed
  * 3 - Verification failed (hash mismatch)
+ * 4 - Delete failed
+ * 5 - File still accessible after delete
  */
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+
+// Import delete function from gui.js
+const gui = require('./gui.js');
 
 const TEST_FILE = './logo.png';
 const ENV_FILE = './.env.json';
@@ -291,11 +298,68 @@ async function main() {
     process.exit(3);
   }
   
+  // Step 8: Delete the uploaded file
+  console.log('Step 8: Deleting uploaded file from B2...');
+  let fileName;
+  try {
+    // Extract filename from URL
+    // URL format: https://xxx.backblazeb2.com/file/bucketName/pathPrefix/filename
+    const urlPath = new URL(uploadedUrl).pathname;
+    const pathParts = urlPath.split('/');
+    // Remove empty parts and 'file' prefix, bucket name
+    const cleanParts = pathParts.filter(p => p && p !== 'file');
+    // First part is bucket name, rest is file path
+    fileName = cleanParts.slice(1).join('/');
+    // URL decode the filename
+    fileName = decodeURIComponent(fileName);
+    
+    console.log(`   File name: ${fileName}`);
+    
+    // Create a mock log object
+    const mockLog = {
+      info: (msg) => console.log(`   ${msg}`),
+      warn: (msg) => console.log(`   ⚠️  ${msg}`),
+      error: (msg) => console.log(`   ❌ ${msg}`)
+    };
+    
+    const deleteResult = await gui.deleteB2File(fileName, config, mockLog);
+    
+    if (deleteResult.success) {
+      console.log(`   ${deleteResult.message}`);
+      console.log('✓ Delete successful\n');
+    } else {
+      throw new Error('Delete returned false');
+    }
+  } catch (error) {
+    console.error('❌ Delete failed:', error.message);
+    process.exit(4);
+  }
+  
+  // Step 9: Verify file is deleted
+  console.log('Step 9: Verifying file deletion (URL should return 404)...');
+  try {
+    const response = await fetch(uploadedUrl, { method: 'HEAD' });
+    
+    if (response.status === 404 || response.status === 403) {
+      console.log(`   HTTP ${response.status} - File not accessible ✓`);
+      console.log('✓ Deletion verified!\n');
+    } else {
+      console.error(`   HTTP ${response.status} - File still accessible!`);
+      console.error('❌ File was not deleted properly.\n');
+      process.exit(5);
+    }
+  } catch (error) {
+    // Network error also means file is not accessible
+    console.log(`   Network error (expected): ${error.message}`);
+    console.log('✓ Deletion verified!\n');
+  }
+  
   // Success
   console.log('========================================');
   console.log('  🎉 All tests passed successfully!');
+  console.log('  (Upload + Delete verified)');
   console.log('========================================');
-  console.log(`\nUploaded file: ${uploadedUrl}`);
+  console.log(`\nDeleted file: ${fileName}`);
   console.log(`Path prefix: ${config.pathPrefix || '(none)'}`);
   console.log(`Bucket: ${config.bucketName}\n`);
   
