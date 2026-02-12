@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install PicGo CLI
+        run: npm install -g picgo
+
+      - name: Create .env.json from secrets
+        run: |
+          cat > .env.json << 'EOF'
+          {
+            "applicationKeyId": "${{ secrets.B2_APPLICATION_KEY_ID }}",
+            "applicationKey": "${{ secrets.B2_APPLICATION_KEY }}",
+            "bucketId": "${{ secrets.B2_BUCKET_ID }}",
+            "bucketName": "${{ secrets.B2_BUCKET_NAME }}",
+            "customDomain": "${{ secrets.B2_CUSTOM_DOMAIN || '' }}",
+            "pathPrefix": "test-ci-${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Run test
+        run: node test.js
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
