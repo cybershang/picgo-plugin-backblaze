@@ -1,9 +1,10 @@
 {
   "name": "picgo-plugin-backblaze",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "PicGo uploader plugin for Backblaze B2 Cloud Storage",
   "main": "index.js",
   "scripts": {
+    "test": "node test.js"
   },
   "keywords": [
     "picgo",
