@@ -107,23 +107,21 @@ function configurePicgo(config) {
       fs.mkdirSync(picgoConfigDir, { recursive: true });
     }
     
-    // Set uploader config in both places
-    picgoConfig.uploader = CONFIG_NAME;
-    picgoConfig[CONFIG_NAME] = config;
-    
-    // CRITICAL: PicGo uses picBed.uploader, not root uploader
+    // CRITICAL: PicGo uses picBed for uploader config
+    // Plugin reads config via ctx.getConfig('picBed.b2')
     if (!picgoConfig.picBed) {
       picgoConfig.picBed = {};
     }
     picgoConfig.picBed.uploader = CONFIG_NAME;
     picgoConfig.picBed.current = CONFIG_NAME;
+    picgoConfig.picBed[CONFIG_NAME] = config;
     
     // Clean config values (trim whitespace/newlines from secrets)
-    if (picgoConfig[CONFIG_NAME]) {
-      for (const key of Object.keys(picgoConfig[CONFIG_NAME])) {
-        const val = picgoConfig[CONFIG_NAME][key];
+    if (picgoConfig.picBed[CONFIG_NAME]) {
+      for (const key of Object.keys(picgoConfig.picBed[CONFIG_NAME])) {
+        const val = picgoConfig.picBed[CONFIG_NAME][key];
         if (typeof val === 'string') {
-          picgoConfig[CONFIG_NAME][key] = val.trim();
+          picgoConfig.picBed[CONFIG_NAME][key] = val.trim();
         }
       }
     }
@@ -133,10 +131,10 @@ function configurePicgo(config) {
     console.log('✓ PicGo configured via config file');
     console.log(`   Config path: ${picgoConfigPath}`);
     console.log('   Config content (without secrets):');
-    const displayConfig = { ...picgoConfig };
-    if (displayConfig.b2) {
-      displayConfig.b2 = { 
-        ...displayConfig.b2, 
+    const displayConfig = JSON.parse(JSON.stringify(picgoConfig));
+    if (displayConfig.picBed && displayConfig.picBed.b2) {
+      displayConfig.picBed.b2 = { 
+        ...displayConfig.picBed.b2, 
         applicationKeyId: '***', 
         applicationKey: '***' 
       };
