@@ -114,6 +114,17 @@ function configurePicgo(config) {
     fs.writeFileSync(picgoConfigPath, JSON.stringify(picgoConfig, null, 2));
     
     console.log('✓ PicGo configured via config file');
+    console.log(`   Config path: ${picgoConfigPath}`);
+    console.log('   Config content (without secrets):');
+    const displayConfig = { ...picgoConfig };
+    if (displayConfig.b2) {
+      displayConfig.b2 = { 
+        ...displayConfig.b2, 
+        applicationKeyId: '***', 
+        applicationKey: '***' 
+      };
+    }
+    console.log(JSON.stringify(displayConfig, null, 2).split('\n').map(l => '     ' + l).join('\n'));
   }
 }
 
@@ -124,34 +135,54 @@ function configurePicgo(config) {
  */
 function uploadFile(filePath) {
   try {
-    const output = execSync(`picgo upload "${filePath}"`, {
+    console.log('   Executing: picgo -d upload "${filePath}"');
+    
+    const output = execSync(`picgo -d upload "${filePath}"`, {
       encoding: 'utf-8',
       timeout: 60000,
       stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    // Parse output to find URL
-    // PicGo outputs the URL in the last line or in a specific format
+    // Debug: show last 20 lines of output
+    console.log('   Output (last 20 lines):');
     const lines = output.trim().split('\n');
+    lines.slice(-20).forEach(l => console.log('     ' + l));
     
-    // Try to find URL in output
-    for (const line of lines.reverse()) {
-      const trimmed = line.trim();
-      // Match common URL patterns
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        return trimmed;
+    // Parse output to find URL
+    // Look for URL after [PicGo SUCCESS]: or any standalone URL line
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Check for [PicGo SUCCESS] marker - URL is on next line
+      if (line.includes('[PicGo SUCCESS]') && i + 1 < lines.length) {
+        const nextLine = lines[i + 1].trim();
+        if (nextLine.startsWith('http://') || nextLine.startsWith('https://')) {
+          return nextLine;
+        }
+      }
+      
+      // Direct URL match
+      if (line.startsWith('http://') || line.startsWith('https://')) {
+        return line;
       }
     }
     
-    // If no URL found, check if output contains URL pattern
+    // Fallback: regex match
     const urlMatch = output.match(/(https?:\/\/[^\s]+)/);
     if (urlMatch) {
       return urlMatch[1];
     }
     
-    throw new Error(`Could not parse URL from output: ${output}`);
+    throw new Error(`Could not parse URL from output. Full output:\n${output}`);
   } catch (error) {
-    console.error('Upload failed:', error.stderr || error.message);
+    console.error('   Upload error details:');
+    if (error.stdout) {
+      console.error('   STDOUT:', error.stdout);
+    }
+    if (error.stderr) {
+      console.error('   STDERR:', error.stderr);
+    }
+    console.error('   Message:', error.message);
     throw error;
   }
 }
