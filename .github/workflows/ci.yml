@@ -23,17 +23,26 @@ jobs:
         run: npm install -g picgo
 
       - name: Create .env.json from secrets
+        env:
+          B2_APPLICATION_KEY_ID: ${{ secrets.B2_APPLICATION_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_ID: ${{ secrets.B2_BUCKET_ID }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_CUSTOM_DOMAIN: ${{ secrets.B2_CUSTOM_DOMAIN || '' }}
         run: |
-          cat > .env.json << 'EOF'
-          {
-            "applicationKeyId": "${{ secrets.B2_APPLICATION_KEY_ID }}",
-            "applicationKey": "${{ secrets.B2_APPLICATION_KEY }}",
-            "bucketId": "${{ secrets.B2_BUCKET_ID }}",
-            "bucketName": "${{ secrets.B2_BUCKET_NAME }}",
-            "customDomain": "${{ secrets.B2_CUSTOM_DOMAIN || '' }}",
-            "pathPrefix": "test-ci-${{ github.run_id }}"
-          }
-          EOF
+          node -e '
+          const fs = require("fs");
+          const config = {
+            applicationKeyId: process.env.B2_APPLICATION_KEY_ID,
+            applicationKey: process.env.B2_APPLICATION_KEY,
+            bucketId: process.env.B2_BUCKET_ID,
+            bucketName: process.env.B2_BUCKET_NAME,
+            customDomain: process.env.B2_CUSTOM_DOMAIN,
+            pathPrefix: "test-ci-" + process.env.GITHUB_RUN_ID
+          };
+          fs.writeFileSync(".env.json", JSON.stringify(config, null, 2));
+          console.log("✓ .env.json created");
+          '
 
       - name: Run test
         run: node test.js
