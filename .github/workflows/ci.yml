@@ -39,12 +39,13 @@ jobs:
         run: |
           node -e '
           const fs = require("fs");
+          const trim = (s) => s ? s.toString().trim() : "";
           const config = {
-            applicationKeyId: process.env.B2_APPLICATION_KEY_ID,
-            applicationKey: process.env.B2_APPLICATION_KEY,
-            bucketId: process.env.B2_BUCKET_ID,
-            bucketName: process.env.B2_BUCKET_NAME,
-            customDomain: process.env.B2_CUSTOM_DOMAIN,
+            applicationKeyId: trim(process.env.B2_APPLICATION_KEY_ID),
+            applicationKey: trim(process.env.B2_APPLICATION_KEY),
+            bucketId: trim(process.env.B2_BUCKET_ID),
+            bucketName: trim(process.env.B2_BUCKET_NAME),
+            customDomain: trim(process.env.B2_CUSTOM_DOMAIN),
             pathPrefix: "test-ci-" + process.env.GITHUB_RUN_ID
           };
           fs.writeFileSync(".env.json", JSON.stringify(config, null, 2));

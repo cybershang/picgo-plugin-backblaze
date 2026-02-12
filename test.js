@@ -107,9 +107,26 @@ function configurePicgo(config) {
       fs.mkdirSync(picgoConfigDir, { recursive: true });
     }
     
-    // Set uploader config
+    // Set uploader config in both places
     picgoConfig.uploader = CONFIG_NAME;
     picgoConfig[CONFIG_NAME] = config;
+    
+    // CRITICAL: PicGo uses picBed.uploader, not root uploader
+    if (!picgoConfig.picBed) {
+      picgoConfig.picBed = {};
+    }
+    picgoConfig.picBed.uploader = CONFIG_NAME;
+    picgoConfig.picBed.current = CONFIG_NAME;
+    
+    // Clean config values (trim whitespace/newlines from secrets)
+    if (picgoConfig[CONFIG_NAME]) {
+      for (const key of Object.keys(picgoConfig[CONFIG_NAME])) {
+        const val = picgoConfig[CONFIG_NAME][key];
+        if (typeof val === 'string') {
+          picgoConfig[CONFIG_NAME][key] = val.trim();
+        }
+      }
+    }
     
     fs.writeFileSync(picgoConfigPath, JSON.stringify(picgoConfig, null, 2));
     
