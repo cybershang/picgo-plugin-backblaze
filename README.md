@@ -21,9 +21,21 @@ This is a PicGo uploader plugin for Backblaze B2 Cloud Storage.
 
 ### 通过 PicGo GUI 安装
 
+#### 插件市场
+
 1. 打开 PicGo，进入「插件设置」
 2. 搜索 `picgo-plugin-backblaze`
 3. 点击安装
+
+#### 本地导入
+
+1. 打开 PicGo，进入「插件设置」
+2. 点击右上角的⬇️标志，“导入本地插件”
+![PicGo extension settings](./assets/PicGo-install-plugin.png)
+3. 选择本项目仓库对应的文件夹
+![Choose directory of extension's repo](./assets/PicGo-local-import.png)
+4. 安装成功
+![Extension installed successfully](./assets/install-success.png)
 
 ### 通过 NPM 安装 (CLI 版本)
 
@@ -65,9 +77,9 @@ picgo install picgo-plugin-backblaze
 #### GUI 版本
 
 1. 进入「图床设置」
-2. 选择「Backblaze B2」
-3. 填写配置信息
-4. 点击「确认」保存
+2. 选择「Backblaze B2」并填写配置信息
+![PicGo backblaze B2 configuration](./assets/PicGo-backblaze-configuration.png)
+3. 点击「确认」保存
 
 #### CLI 版本
 
@@ -90,8 +102,8 @@ picgo upload image.png
 
 如果你有绑定自定义域名到 B2 Bucket，可以在「Custom Domain」配置项中填写，例如：
 
-```
-https://cdn.example.com
+```text
+https://img.example.com
 ```
 
 上传后的图片 URL 将使用你的自定义域名。
@@ -100,7 +112,7 @@ https://cdn.example.com
 
 如果你希望将图片上传到特定的文件夹中，可以在「Path Prefix」配置项中填写路径前缀，例如：
 
-```
+```text
 images/2024/blog
 ```
 
