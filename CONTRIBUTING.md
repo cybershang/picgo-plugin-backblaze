@@ -6,9 +6,10 @@
 
 ### 报告问题
 
-如果您发现了 bug 或有功能建议，请通过 [GitHub Issues](https://github.com/cybershang/picgo-plugin-b2/issues) 提交。
+如果您发现了 bug 或有功能建议，请通过 [GitHub Issues](https://github.com/cybershang/picgo-plugin-backblaze/issues) 提交。
 
 提交问题时，请尽量包含以下信息：
+
 - 问题的简要描述
 - 复现步骤
 - 期望行为与实际行为
