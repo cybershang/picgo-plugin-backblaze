@@ -14,6 +14,8 @@ This is a PicGo uploader plugin for Backblaze B2 Cloud Storage.
 - ✅ 自动生成唯一文件名避免冲突
 - ✅ 支持 PicGo CLI 和 GUI 版本
 - ✅ 支持常见图片格式（jpg, png, gif, webp, svg 等）
+- ✅ GUI 版本支持相册删除同步
+- ✅ 提供插件菜单快捷操作
 
 ## 安装
 
@@ -39,7 +41,7 @@ picgo install picgo-plugin-backblaze
 
 ### 获取 B2 配置信息
 
-1. 登录 [Backblaze B2](https://secure.backblaze.com/b2.htm) 控制台
+1. 登录 [Backblaze B2](https://secure.backblaze.com/b2_buckets.htm) 控制台
 2. 创建或选择一个 Bucket，记录 **Bucket ID** 和 **Bucket Name**
    - Bucket ID 格式类似：`706d27df06cf42be92cd0a1a`
    - Bucket Name 是你设定的名称，如：`my-bucket`
@@ -172,6 +174,10 @@ picgo-plugin-b2/
 - **PicGo 版本**: 2.0.0+
 - **PicGo-Core 版本**: 1.5.0+
 - **Node.js 版本**: 14.0.0+
+
+## 贡献
+
+欢迎各种形式的贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
 ## License
 
