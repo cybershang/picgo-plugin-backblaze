@@ -2,7 +2,11 @@
 
 [PicGo](https://github.com/Molunerfinn/PicGo) 的 [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) 云存储上传插件。
 
-This is a PicGo uploader plugin for Backblaze B2 Cloud Storage.
+[![CI](https://github.com/cybershang/picgo-plugin-b2/actions/workflows/ci.yml/badge.svg)](https://github.com/cybershang/picgo-plugin-b2/actions/workflows/ci.yml)
+[![NPM Version](https://img.shields.io/npm/v/picgo-plugin-backblaze.svg)](https://www.npmjs.com/package/picgo-plugin-backblaze)
+[![NPM Downloads](https://img.shields.io/npm/dm/picgo-plugin-backblaze.svg)](https://www.npmjs.com/package/picgo-plugin-backblaze)
+[![License](https://img.shields.io/npm/l/picgo-plugin-backblaze.svg)](https://github.com/cybershang/picgo-plugin-b2/blob/main/LICENSE)
+[![Node.js Version](https://img.shields.io/node/v/picgo-plugin-backblaze.svg)](https://nodejs.org/)
 
 ![Logo](logo.png)
 
